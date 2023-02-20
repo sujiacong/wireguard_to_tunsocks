@@ -1,0 +1,12 @@
+[Unit]
+Description=wireguard to tun2socks service
+After=wg-quick@wg0.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/tun2socks/bin/tun2socks_ctl start
+RemainAfterExit=yes
+ExecStop=/usr/local/tun2socks/bin/tun2socks_ctl stop
+
+[Install]
+WantedBy=multi-user.target

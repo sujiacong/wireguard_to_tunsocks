@@ -1,0 +1,140 @@
+#!/bin/bash
+RUNDIR=`dirname $0`;if [ "${RUNDIR:0:1}" != "/" ];then RUNDIR=`pwd`/$RUNDIR;fi
+cd $RUNDIR
+
+SOCKS_SERVER=127.0.0.1 # SOCKS 服务器的 IP 地址
+SOCKS_PORT=48501 # 本地SOCKS 服务器的端口
+GATEWAY_IP=10.208.118.254
+TUN_NETWORK_DEV=tun0 # 选一个不冲突的 tun 设备号
+TUN_NETWORK_PREFIX=198.18.0 # 选一个不冲突的内网 IP 段的前缀
+SSH_HOST_REMOTE_ADDR=129.226.187.52
+SSH_HOST_REEOTE_PORT=13289
+SSH_HOST_REMOTE_USER=root
+SSH_HOST_REMOTE_PASS=Sujiacong@596174
+USE_SSH_SOCKS5=1
+TUN2SOCKS_BIN=badvpn-tun2socks
+LOG_LEVEL=4
+TUN2SOCKS_DIR=/usr/local/tun2socks
+
+check_socks_port() {
+    ss -l |grep ":$SOCKS_PORT"
+    if [ $? -ne 0 ]
+    then
+	echo "socks port $SOCKS_PORT is not listening" || true
+	exit 0
+    fi
+}
+
+export PATH="${PATH:+$PATH:}/usr/sbin:/sbin"
+
+start_fwd() {
+if [ $USE_SSH_SOCKS5 ]
+then
+    cd $RUNDIR
+    chmod +x tcp_socket5_proxy_alive.sh
+    (./tcp_socket5_proxy_alive.sh serverip=$SSH_HOST_REMOTE_ADDR sshport=$SSH_HOST_REEOTE_PORT localport=$SOCKS_PORT user="$SSH_HOST_REMOTE_USER" pass="$SSH_HOST_REMOTE_PASS" &)
+    sleep 15
+fi
+check_socks_port
+ip tuntap del dev "$TUN_NETWORK_DEV" mode tun
+# 添加虚拟网卡
+ip tuntap add dev "$TUN_NETWORK_DEV" mode tun
+# 给虚拟网卡绑定IP地址
+ip addr add "$TUN_NETWORK_PREFIX.1/24" dev "$TUN_NETWORK_DEV"
+# 启动虚拟网卡
+ip link set "$TUN_NETWORK_DEV" up
+ip route del default via "$GATEWAY_IP"
+if [ "x$SOCKS_SERVER" != "x127.0.0.1" ]
+then
+    ip route add "$SOCKS_SERVER" via "$GATEWAY_IP"
+fi
+# 走网关（路由器）的 IP 地址（如局域网联机）
+for i in $(cat $TUN2SOCKS_DIR/bypass_rules.conf)
+do
+    ip route add "$i" via "$GATEWAY_IP"
+done
+
+# 将默认网关设为虚拟网卡的IP地址
+ip route add 0.0.0.0/1 via "$TUN_NETWORK_PREFIX.1"
+ip route add 128.0.0.0/1 via "$TUN_NETWORK_PREFIX.1"
+
+# 将socks5转为vpn
+( $TUN2SOCKS_DIR/bin/$TUN2SOCKS_BIN --tundev "$TUN_NETWORK_DEV" --netif-ipaddr "$TUN_NETWORK_PREFIX.2" --netif-netmask 255.255.255.0 --socks-server-addr "$SOCKS_SERVER:$SOCKS_PORT" --udpgw-remote-server-addr 127.0.0.1:7300 --logger syslog --loglevel $LOG_LEVEL &)
+}
+
+stop_fwd() {
+ip route del 128.0.0.0/1 via "$TUN_NETWORK_PREFIX.1"
+ip route del 0.0.0.0/1 via "$TUN_NETWORK_PREFIX.1"
+for i in $(cat $TUN2SOCKS_DIR/bypass_rules.conf)
+do
+   ip route del "$i" via "$GATEWAY_IP"
+done
+ip route del "$SOCKS_SERVER" via "$GATEWAY_IP"
+ip route add default via "$GATEWAY_IP"
+ip link set "$TUN_NETWORK_DEV" down
+ip addr del "$TUN_NETWORK_PREFIX.1/24" dev "$TUN_NETWORK_DEV"
+ip tuntap del dev "$TUN_NETWORK_DEV" mode tun
+killall tcp_socket5_proxy_alive.sh 2>/dev/null
+sleep 1
+killall expect 2>/dev/null
+sleep 1
+}
+
+case "$1" in
+  start)
+	test -x $TUN2SOCKS_DIR/bin/$TUN2SOCKS_BIN || exit 0
+	killall tcp_socket5_proxy_alive.sh 2>/dev/null
+	sleep 2
+        killall $TUN2SOCKS_BIN 2>/dev/null
+        sleep 1
+        PID=$(pidof $TUN2SOCKS_BIN 2>/dev/null)
+        while [ "x$PID" != "x" ]
+        do
+            killall $TUN2SOCKS_BIN 2>/dev/null
+            sleep 1
+        done
+	stop_fwd 2>/dev/null
+	sleep 2
+	wg|grep -q wg0
+	if [ $? -ne 0 ]
+	then
+	    echo "wireguard not running,try start wireguard"
+	    systemctl start wg-quick@wg0
+	    sleep 2
+	    wg|grep -q wg0
+	    if [ $? -ne 0 ]
+	    then
+	        echo "wireguard start failed"
+		exit 1
+	    fi
+	fi
+	start_fwd
+	;;
+  stop)
+	killall $TUN2SOCKS_BIN 2>/dev/null
+	sleep 1
+	PID=$(pidof $TUN2SOCKS_BIN 2>/dev/null)
+	while [ "x$PID" != "x" ]
+	do
+	    killall $TUN2SOCKS_BIN 2>/dev/null
+	    sleep 1
+        done
+	stop_fwd 2>/dev/null
+	;;
+	
+  status)
+	PID=$(pidof $TUN2SOCKS_BIN)
+	if [ $? -eq 0 ]
+	then
+	    echo "tun2socks is running at pid $PID"
+	else
+	    echo "tun2socks is not running"
+	fi
+	;;
+
+  *)
+	echo "Usage: $0 {start|stop|status}" || true
+	exit 1
+esac
+
+exit 0
