@@ -3,9 +3,10 @@
 <h1>How To</h1>
 
 <h2>1.Download Ubuntu 22.04 vmware image</h2>
-download Ubuntu 22.04 vmware image,default user/pass is osboxes/osboxes.org
+download Ubuntu 22.04 vmware image,default user/pass is osboxes/osboxes.org  
+
 ```bash
-wget https://jaist.dl.sourceforge.net/project/osboxes/v/vm/55-U--u/22.04/64bit.7z --no-check-certificate`
+wget https://jaist.dl.sourceforge.net/project/osboxes/v/vm/55-U--u/22.04/64bit.7z --no-check-certificate
 ```
 
 <h2>2.Start Ubuntu 22.04</h2>
@@ -39,25 +40,25 @@ Set Default Out GateWay
 
 ![Out GateWay](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/3.png?raw=true)  
 
-Set wireguard networks  
+Set Wireguard Networks  
 
 ![Wireguard Network](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/4.png?raw=true)  
 
-Set bypass networks  
+Set Bypass Networks  
 
 ![Bypass Network](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/5.png?raw=true)
 
 Set Remote SSH Host:Port  
 
-![alt text](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/6.png?raw=true)
+![Remote SSH Host/Port](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/6.png?raw=true)
 
 Set Remote SSH User:Pass  
 
-![Remote SSH Host/Port](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/7.png?raw=true)
+![Remote SSH User/Pass](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/7.png?raw=true)
 
-Set wireguard networks max peers  
+Set Wireguard Networks Max Peers  
 
-![Remote SSH User/Pass](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/8.png?raw=true)
+![Max Wireguard Clients](https://github.com/sujiacong/wireguard_to_tunsocks/blob/main/blob/main/8.png?raw=true)
 
 Install Complete,use wireguard client scan QR code in /etc/wireguard/config/peerx/peerx.png!  
 
