@@ -55,8 +55,7 @@ fi
 
 if [[ -z $serverport ]]
 then
-    echo "missing serverport"
-    exit 1
+    serverport=55555
 fi
 
 if [[ -z $sshport ]]
